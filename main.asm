@@ -1,4 +1,36 @@
 [org 0x7c00];default space for bootsector
+[bits 16]
+
+;section .data
+;    ;constants
+;    VAL equ 0x1234
+
+;section .bss
+;    ;mutable variables
+;    VAR: resb 8 ;8 bytes reserved for var
+
+section .text
+    global main
+
+main:;main is the entry point
+
+    jmp 0x00:zeroseg;so that our buffer is nothing
+
+zeroseg:
+    xor ax, ax;sets ax to boolean, it's same as mov ax, 0 but this is just 2bytes
+    mov ss, ax
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov sp, main
+    cld; clear direction flag to read string from lowesr
+sti ; get rid of interrupts
+
+push ax
+xor ax, ax
+int 0x13
+pop ax
 
 ;MOV si, STR_0
 ;call printf
@@ -7,54 +39,15 @@
 ;mov si, STR_TH
 ;call printf
 
-call readDisk
-jmp test
-
+call read_disk
+;jmp test
+call printhex
 ;JUMP TO CURRENT LOCATION
 JMP $
 
-printf:
-    PUSHA  ;to print everything on stack and pusha works only on 16bit mode
-    str_loop:
-        MOV al, [si]
-        cmp al, 0
-        jne print_char
-        popa
-        ret
-
-    print_char:
-        mov ah, 0x0e
-        int 0x10
-        add si, 1
-        jmp str_loop
-
-;creating read disk function
-readDisk:
-    pusha;push everything to stack
-    mov ah, 0x02;reading slectors from drive
-    mov dl, 0x80; selecting drive
-    mov ch, 0; selecting cylinder
-    mov dh, 0
-    mov al, 1
-    mov cl, 2;start reading 2nd sector because bootloader is our first sector
-
-    push bx
-    mov bx, 0
-    mov es, bx
-    pop bx
-    mov bx, 0x7c00 + 0x200
-
-    int 0x13
-
-    jc disk_err
-    popa
-    ret
-
-    disk_err:
-        mov si, DISK_ERR_MSG
-        call printf
-        jmp $
-
+%include "./print.asm"
+%include "./read_disk.asm"
+%include "./printhex.asm"
 
 ;STR_0: db 'Loaded in 16bit Real mode to memory location 0x7c00.', 0x3e,0x3d, 0
 ;STR_T: db 'These messages use the BIOS interrupt 0x16 with the ah register set to 0x0e.', 0x10, 0x9d, 0
@@ -69,7 +62,7 @@ DW 0XAA55
 
 test:
 mov si, testing_str
-call printf
+call print
 
 
 times 512 db 0
